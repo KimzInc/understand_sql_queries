@@ -106,3 +106,114 @@ WHERE o.status = 'Completed'
 GROUP BY o.region
 HAVING SUM(oi.quantity * oi.unit_price) > 100
 ORDER BY total_revenue DESC;
+
+
+-- Filter out cancelled orders on specific region 
+select 
+	o.region,
+	sum(oi.quantity * oi.unit_price) as revenue
+from orders o
+join order_items oi on o.order_id = oi.order_id 
+where o.status != 'Cancelled'
+group by o.region 
+order by revenue desc;
+
+-- "Show me the total revenue per customer for only the North and East regions, 
+-- for orders placed in July 2026, but only show customers who spent more than $1,000, 
+-- and sort them alphabetically by name."
+
+select 
+    o.customer_name,
+    sum(oi.quantity * oi.unit_price) as total_revenue
+from orders o
+join order_items oi on o.order_id = oi.order_id 
+where o.order_date >= '2026-07-01'
+    and (o.region = 'North' or o.region = 'East')
+group by o.customer_name
+having  sum(oi.quantity * oi.unit_price) > 1000
+order by o.customer_name;
+
+------ Alternative using 'in'
+
+select 
+    o.customer_name,
+    sum(oi.quantity * oi.unit_price) as total_revenue
+from orders o
+join order_items oi on o.order_id = oi.order_id 
+where o.order_date >= '2026-07-01'
+    and o.region in ('North', 'East')
+group by o.customer_name
+having  sum(oi.quantity * oi.unit_price) > 1000
+order by o.customer_name;
+
+---- Cap the date
+select 
+    o.customer_name,
+    sum(oi.quantity * oi.unit_price) as total_revenue
+from orders o
+join order_items oi on o.order_id = oi.order_id 
+where o.order_date >= '2026-07-01'
+	and o.order_date < '2026-08-1'
+    and o.region in ('North', 'East')
+group by o.customer_name
+having  sum(oi.quantity * oi.unit_price) > 1000
+order by o.customer_name;
+
+-- Not in
+select 
+    o.customer_name,
+    sum(oi.quantity * oi.unit_price) as total_revenue
+from orders o
+join order_items oi on o.order_id = oi.order_id 
+where o.order_date >= '2026-07-01'
+    and o.region not in ('North', 'East')
+group by o.customer_name
+having  sum(oi.quantity * oi.unit_price) > 1000
+order by o.customer_name;
+
+
+-- Monthly sales with Date trunc 
+select 
+	date_trunc('month', o.order_date) as sales_month,
+	o.region,
+	sum(oi.quantity * oi.unit_price) as total_revenue
+from orders o
+join order_items oi on o.order_id = oi.order_id 
+group by sales_month,o.region 
+order by sales_month asc;
+
+
+select * from orders; 
+
+-- Insert a new customer order with NO matching items in order_items
+INSERT INTO orders (customer_name, order_date, region, status) 
+VALUES ('Isabel Chen', '2026-07-08', 'North', 'Pending');
+
+SELECT 
+	o.order_id, 
+	o.customer_name, 
+	oi.product_name
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id;
+
+
+-- Left join 
+-- hint: "Show me all customers, regardless of whether they've placed an order yet."
+
+select 
+	o.order_id,
+	o.customer_name,
+	oi.product_name
+from orders o
+left join order_items oi on o.order_id = oi.order_id;
+
+
+-- Right join
+select 
+	o.order_id,
+	o.customer_name,
+	oi.product_name
+from orders o
+right join order_items oi on o.order_id = oi.order_id;
+
+
