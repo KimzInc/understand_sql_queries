@@ -217,3 +217,172 @@ from orders o
 right join order_items oi on o.order_id = oi.order_id;
 
 
+-- Write a query that shows the Monthly Revenue per Region, 
+-- but only for regions that generated more than $1,000 in total revenue for that specific month."
+
+select
+	date_trunc('month', o.order_date) as sales_date,
+	o.region,
+	sum(oi.quantity * oi.unit_price) as revenue
+from orders o
+join order_items oi on o.order_id = oi.order_id 
+group by sales_date, o.region 
+having sum(oi.quantity * oi.unit_price) > 1000
+order by sales_date asc, revenue desc;
+
+
+-- Show me the total revenue for every region, including regions that had zero sales (which should display as NULL or 0).
+select 
+	o.region,
+	sum(oi.quantity * oi.unit_price) as total_revenue
+from orders o
+left join order_items oi on o.order_id = oi.order_id
+group by o.region
+order by total_revenue asc;
+
+
+-- Correction of the above query
+SELECT 
+    o.region,
+    COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS total_revenue
+FROM orders o
+LEFT JOIN order_items oi ON o.order_id = oi.order_id
+GROUP BY o.region
+ORDER BY total_revenue ASC;
+
+---------------------------------------------------------
+
+select 
+	o.order_id,
+	o.customer_name,
+	o.region,
+	oi.product_name,
+	(oi.quantity * oi.unit_price) as revenue 
+from orders o
+left join order_items oi on o.order_id = oi.order_id;
+
+-- Find regions with more than 3 orders.
+select
+	region,
+	count(distinct order_id) 
+from orders
+group by region
+having count(distinct order_id)  >= 3;
+
+-- corrections
+
+select 
+	o.region,
+	count(distinct o.order_id) as num_of_orders
+from orders o
+join order_items oi on o.order_id = oi.order_id 
+group by o.region 
+having count(distinct o.order_id) >=3
+order by num_of_orders desc;
+
+
+SELECT 
+    o.region,
+    COUNT(DISTINCT o.order_id) AS number_of_orders
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+GROUP BY o.region
+HAVING COUNT(DISTINCT o.order_id) >1
+ORDER BY number_of_orders DESC;
+
+-- without distinct 	
+SELECT 
+    o.region,
+    COUNT(*) AS item_count
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+GROUP BY o.region;
+
+
+-- Find customers who have placed more than 1 order
+select
+	o.customer_name,
+	count(distinct o.order_id) as number_of_orders
+from orders o
+join order_items oi on o.order_id = oi.order_id 
+group by o.customer_name
+having count(distinct o.order_id) > 1;
+
+----------------------------------------------------------
+-- Add a second order for Alice (she's our loyal customer!)
+INSERT INTO orders (customer_name, order_date, region, status) 
+VALUES ('Alice Johnson', '2026-07-11', 'North', 'Completed');
+
+
+-- Add items to Alice's new order
+INSERT INTO order_items (order_id, product_name, quantity, unit_price)
+VALUES 
+    ((SELECT MAX(order_id) FROM orders WHERE customer_name = 'Alice Johnson'), 'Monitor', 2, 350.00),
+    ((SELECT MAX(order_id) FROM orders WHERE customer_name = 'Alice Johnson'), 'Keyboard', 1, 60.00);
+
+
+-- test with the previous query 
+select
+	o.customer_name,
+	count(distinct o.order_id) as number_of_orders
+from orders o
+join order_items oi on o.order_id = oi.order_id 
+group by o.customer_name
+having count(distinct o.order_id) > 1;
+
+
+----------------------------------------------------------------------------------------------
+
+----------------------- complex sub-queries ---------------
+
+-- "Find customers who spent more than the average order value."
+
+---- steps:
+
+-- Calculate the average order value (total revenue per order, averaged across all orders).
+
+-- Calculate each customer's total spending.
+
+-- Compare each customer's spending to the average from step 1.
+
+SELECT 
+    o.customer_name,
+    SUM(oi.quantity * oi.unit_price) AS customer_total
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+GROUP BY o.customer_name
+HAVING SUM(oi.quantity * oi.unit_price) > (
+    -- Subquery: Calculate the average order value
+    SELECT AVG(order_total) 
+    FROM (
+        SELECT SUM(oi2.quantity * oi2.unit_price) AS order_total
+        FROM orders o2
+        JOIN order_items oi2 ON o2.order_id = oi2.order_id
+        GROUP BY o2.order_id
+    ) AS avg_subquery
+)
+ORDER BY customer_total DESC;
+
+
+--------------------------------------------------------------------------
+select 
+	o.customer_name,
+	sum(oi.quantity * oi.unit_price) as customer_total
+from orders o
+join order_items oi on o.order_id = oi.order_id
+group by o.customer_name
+having sum(oi.quantity * oi.unit_price) > (
+	-- subquary: calculate the average order value
+	select avg(order_total)
+	from (
+		select sum(oi2.quantity * oi2.unit_price) as order_total
+		from orders o2
+		join order_items oi2 on o2.order_id = oi2.order_id
+		group by o2.order_id
+	) as avg_subquery
+	
+	)
+	order by customer_total desc;
+
+
+
